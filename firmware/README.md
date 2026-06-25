@@ -16,7 +16,7 @@ No incluye aplicación Android, Bluetooth, GPIO real ni código específico de u
 
 ## Diagrama General
 
-![Diagrama general del proyecto](docs/img/diagrama-general.png)
+![Diagrama general del proyecto](./docs/img/diagrama-general.png)
 
 ## Estado Actual Del Proyecto
 
