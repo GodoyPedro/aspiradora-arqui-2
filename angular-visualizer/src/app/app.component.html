@@ -1,0 +1,86 @@
+<main class="shell">
+  <section class="visualizer">
+    <div class="toolbar">
+      <div>
+        <h1>Aspiradora</h1>
+        <p>{{ lastUpdated ? (lastUpdated | date: 'HH:mm:ss') : 'Sin datos' }}</p>
+      </div>
+
+      <label class="poll-control">
+        <span>Polling</span>
+        <input type="number" min="500" step="500" [(ngModel)]="pollIntervalMs" (change)="restartPolling()">
+        <span>ms</span>
+      </label>
+    </div>
+
+    <div #canvasHost class="canvas-host" aria-label="Robot position canvas"></div>
+  </section>
+
+  <aside class="side-panel">
+    <section class="status-strip">
+      <span class="badge" [class]="statusTone">{{ status?.state ?? 'CONNECTING' }}</span>
+      <span class="battery">{{ status?.battery_percent ?? 0 }}%</span>
+    </section>
+
+    <section class="metric-grid">
+      <div>
+        <span>Modo</span>
+        <strong>{{ status?.cleaning_mode ?? '-' }}</strong>
+      </div>
+      <div>
+        <span>Carga</span>
+        <strong>{{ status?.is_charging ? 'ON' : 'OFF' }}</strong>
+      </div>
+      <div>
+        <span>Succion</span>
+        <strong>{{ status?.suction_enabled ? 'ON' : 'OFF' }}</strong>
+      </div>
+      <div>
+        <span>Cepillos</span>
+        <strong>{{ status?.brushes_enabled ? 'ON' : 'OFF' }}</strong>
+      </div>
+      <div>
+        <span>Rueda L</span>
+        <strong>{{ status?.left_wheel_speed ?? 0 }}</strong>
+      </div>
+      <div>
+        <span>Rueda R</span>
+        <strong>{{ status?.right_wheel_speed ?? 0 }}</strong>
+      </div>
+    </section>
+
+    <section *ngIf="status?.current_error" class="alert danger">
+      {{ status?.current_error }}
+    </section>
+
+    <section *ngIf="connectionError" class="alert warning">
+      {{ connectionError }}
+    </section>
+
+    <section *ngIf="activeSensors.length" class="sensor-list">
+      <span *ngFor="let sensor of activeSensors">{{ sensor }}</span>
+    </section>
+
+    <section class="controls">
+      <button type="button" (click)="runCommand('start')">Start</button>
+      <button type="button" (click)="runCommand('pause')">Pause</button>
+      <button type="button" (click)="runCommand('stop')">Stop</button>
+      <button type="button" (click)="runCommand('dock')">Dock</button>
+      <button type="button" (click)="runCommand('auto')">Auto</button>
+      <button type="button" (click)="runCommand('clear')">Clear</button>
+    </section>
+
+    <section class="manual">
+      <select [(ngModel)]="manualMove.direction" aria-label="Manual direction">
+        <option *ngFor="let direction of directions" [value]="direction">{{ direction }}</option>
+      </select>
+      <input type="number" min="0" max="100" [(ngModel)]="manualMove.speed" aria-label="Speed">
+      <input type="number" min="1" step="100" [(ngModel)]="manualMove.duration_ms" aria-label="Duration milliseconds">
+      <button type="button" (click)="sendManualMove()">Move</button>
+    </section>
+
+    <section *ngIf="commandMessage" class="command-message">
+      {{ commandMessage }}
+    </section>
+  </aside>
+</main>
