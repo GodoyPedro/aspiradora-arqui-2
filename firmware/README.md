@@ -17,7 +17,7 @@ La app Android de control remoto vive separada en `android-app/` y consume la AP
 
 ## Diagrama General
 
-![Diagrama general del proyecto](docs/img/diagrama-general.png)
+![Diagrama general del proyecto](./docs/img/diagrama-general.png)
 
 ## Estado Actual Del Proyecto
 
