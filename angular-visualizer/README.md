@@ -4,9 +4,10 @@ Angular + PixiJS frontend for the robot vacuum firmware API.
 
 ## Run
 
-Start the firmware from the repository root:
+Start the firmware:
 
 ```bash
+cd firmware
 cargo run
 ```
 
