@@ -6,7 +6,7 @@
     <application
         android:name=".VacuumRemoteApp"
         android:allowBackup="true"
-        android:cleartextTrafficPermitted="true"
+        android:usesCleartextTraffic="true"
         android:label="Vacuum Remote"
         android:supportsRtl="true"
         android:theme="@style/Theme.VacuumRemote">
