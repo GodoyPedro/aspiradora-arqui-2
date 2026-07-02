@@ -98,11 +98,110 @@ impl fmt::Display for RobotError {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AutoNavigationPhase {
+    Idle,
+    RoomCrossing,
+    ClearanceBackup,
+    ClearanceTurnClear,
+    ClearanceExitForward,
+    WallBackup,
+    WallTurnAway,
+    WallExitForward,
+    ContactBackup,
+    WallAlign,
+    WallFollow,
+    CornerBackup,
+    CornerTurnClear,
+    CornerExitForward,
+    WallRelease,
+    ObstacleBackup,
+    ObstacleTurnAway,
+    ObstacleEscapeForward,
+    AntiLoopBackup,
+    AntiLoopTurn,
+    AntiLoopForward,
+}
+
+impl fmt::Display for AutoNavigationPhase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = match self {
+            Self::Idle => "IDLE",
+            Self::RoomCrossing => "ROOM_CROSSING",
+            Self::ClearanceBackup => "CLEARANCE_BACKUP",
+            Self::ClearanceTurnClear => "CLEARANCE_TURN_CLEAR",
+            Self::ClearanceExitForward => "CLEARANCE_EXIT_FORWARD",
+            Self::WallBackup => "WALL_BACKUP",
+            Self::WallTurnAway => "WALL_TURN_AWAY",
+            Self::WallExitForward => "WALL_EXIT_FORWARD",
+            Self::ContactBackup => "CONTACT_BACKUP",
+            Self::WallAlign => "WALL_ALIGN",
+            Self::WallFollow => "WALL_FOLLOW",
+            Self::CornerBackup => "CORNER_BACKUP",
+            Self::CornerTurnClear => "CORNER_TURN_CLEAR",
+            Self::CornerExitForward => "CORNER_EXIT_FORWARD",
+            Self::WallRelease => "WALL_RELEASE",
+            Self::ObstacleBackup => "OBSTACLE_BACKUP",
+            Self::ObstacleTurnAway => "OBSTACLE_TURN_AWAY",
+            Self::ObstacleEscapeForward => "OBSTACLE_ESCAPE_FORWARD",
+            Self::AntiLoopBackup => "ANTI_LOOP_BACKUP",
+            Self::AntiLoopTurn => "ANTI_LOOP_TURN",
+            Self::AntiLoopForward => "ANTI_LOOP_FORWARD",
+        };
+
+        write!(f, "{value}")
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ContactType {
+    Wall,
+    Obstacle,
+    Unknown,
+}
+
+impl fmt::Display for ContactType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = match self {
+            Self::Wall => "WALL",
+            Self::Obstacle => "OBSTACLE",
+            Self::Unknown => "UNKNOWN",
+        };
+
+        write!(f, "{value}")
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum WallSide {
+    Left,
+    Right,
+    Top,
+    Bottom,
+}
+
+impl fmt::Display for WallSide {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = match self {
+            Self::Left => "LEFT",
+            Self::Right => "RIGHT",
+            Self::Top => "TOP",
+            Self::Bottom => "BOTTOM",
+        };
+
+        write!(f, "{value}")
+    }
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct SensorSnapshot {
     pub obstacle_detected: bool,
     pub drop_off_detected: bool,
     pub bumper_pressed: bool,
+    pub proximity_contact: bool,
+    pub contact_type: Option<ContactType>,
+    pub wall_side: Option<WallSide>,
+    pub forward_clearance_blocked: bool,
     pub dust_container_full: bool,
     pub wheel_stuck: bool,
     pub brush_stuck: bool,
@@ -120,6 +219,7 @@ pub struct RobotStatus {
     pub left_wheel_speed: i16,
     pub right_wheel_speed: i16,
     pub current_error: Option<RobotError>,
+    pub auto_navigation_phase: Option<AutoNavigationPhase>,
     pub sensors: SensorSnapshot,
 }
 

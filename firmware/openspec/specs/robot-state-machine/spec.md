@@ -1,9 +1,7 @@
 ## Purpose
 
 Define the robot lifecycle states, explicit transitions, and automatic transition rules driven by safety, battery, and docking conditions.
-
 ## Requirements
-
 ### Requirement: Firmware shall implement the required robot states
 The robot state machine SHALL support the states `Off`, `Standby`, `Cleaning`, `Paused`, `ManualControl`, `ReturningToDock`, `Charging`, and `Error`. In this implementation, the runtime SHALL initialize in `Standby`, and `Off` SHALL remain a future embedded power-management state that is not reachable through the HTTP command API.
 
@@ -44,10 +42,19 @@ The robot SHALL remain in `Error` until the current critical condition has clear
 ### Requirement: Battery and docking rules shall drive automatic transitions
 The robot SHALL transition from `Cleaning` to `ReturningToDock` when battery percentage is less than or equal to `15`. The robot SHALL transition from `ReturningToDock` to `Charging` when docking is detected through `DockingDriver`. The robot MAY transition from `Charging` to `Standby` when battery percentage reaches `100`.
 
-#### Scenario: Low battery during cleaning
-- **WHEN** the robot is in `Cleaning` and the battery reading becomes `15` percent or lower
-- **THEN** the robot SHALL stop cleaning behavior and transition to `ReturningToDock`
+#### Scenario: Return-to-dock command enters returning state from allowed states
+- **WHEN** a client sends `POST /commands/return-to-dock` from a controller state that the implementation allows for docking
+- **THEN** the backend SHALL transition the robot to `ReturningToDock`
 
-#### Scenario: Dock reached while returning
-- **WHEN** the robot is in `ReturningToDock` and `DockingDriver` reports dock detection
-- **THEN** the robot SHALL stop wheel motion and transition to `Charging`
+#### Scenario: Return-to-dock command is rejected clearly from refused states
+- **WHEN** a client sends `POST /commands/return-to-dock` from a controller state that the implementation does not allow for docking
+- **THEN** the backend SHALL return a clear error response and SHALL NOT change the current state
+
+#### Scenario: Dock detection completes charging transition through simulation tick
+- **WHEN** the robot is in `ReturningToDock`, `/simulation/docking` sets `dock_detected = true`, and `/simulation/tick` runs
+- **THEN** the backend SHALL transition the robot to `Charging`
+
+#### Scenario: Charging stops wheel motion
+- **WHEN** the robot has transitioned to `Charging`
+- **THEN** the reported wheel speeds SHALL be `0/0`
+

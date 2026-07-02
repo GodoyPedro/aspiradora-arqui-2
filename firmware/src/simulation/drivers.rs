@@ -1,4 +1,4 @@
-use crate::domain::SensorSnapshot;
+use crate::domain::{ContactType, SensorSnapshot, WallSide};
 use crate::hal::{
     BatteryDriver, BatteryStatus, BrushDriver, Clock, DockingDriver, DockingStatus, SensorReader,
     SuctionDriver, WheelMotorDriver,
@@ -56,6 +56,10 @@ pub struct SimulatedSensorReader {
     pub obstacle_detected: bool,
     pub drop_off_detected: bool,
     pub bumper_pressed: bool,
+    pub proximity_contact: bool,
+    pub contact_type: Option<ContactType>,
+    pub wall_side: Option<WallSide>,
+    pub forward_clearance_blocked: bool,
     pub dust_container_full: bool,
     pub wheel_stuck: bool,
     pub brush_stuck: bool,
@@ -67,6 +71,10 @@ impl SimulatedSensorReader {
         self.obstacle_detected = snapshot.obstacle_detected;
         self.drop_off_detected = snapshot.drop_off_detected;
         self.bumper_pressed = snapshot.bumper_pressed;
+        self.proximity_contact = snapshot.proximity_contact;
+        self.contact_type = snapshot.contact_type;
+        self.wall_side = snapshot.wall_side;
+        self.forward_clearance_blocked = snapshot.forward_clearance_blocked;
         self.dust_container_full = snapshot.dust_container_full;
         self.wheel_stuck = snapshot.wheel_stuck;
         self.brush_stuck = snapshot.brush_stuck;
@@ -80,6 +88,10 @@ impl SensorReader for SimulatedSensorReader {
             obstacle_detected: self.obstacle_detected,
             drop_off_detected: self.drop_off_detected,
             bumper_pressed: self.bumper_pressed,
+            proximity_contact: self.proximity_contact,
+            contact_type: self.contact_type,
+            wall_side: self.wall_side,
+            forward_clearance_blocked: self.forward_clearance_blocked,
             dust_container_full: self.dust_container_full,
             wheel_stuck: self.wheel_stuck,
             brush_stuck: self.brush_stuck,

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Robot Vacuum Demo</title>
+    <link rel="stylesheet" href="/static/demo.css" />
+    <script defer src="/static/demo.js"></script>
+  </head>
+  <body>
+    <main class="layout">
+      <section class="panel controls-panel">
+        <h1>Demo local del firmware</h1>
+        <p class="subtle">
+          El navegador modela posicion, mapa y cobertura. El backend mantiene el estado del robot y persiste los dumps.
+        </p>
+
+        <div class="session-card">
+          <div><span class="label">Session</span><strong id="session-id">-</strong></div>
+          <div><span class="label">Map</span><strong id="map-id">-</strong></div>
+          <div><span class="label">Dump path</span><code id="log-path">demo-logs/&lt;session_id&gt;/log.json</code></div>
+        </div>
+
+        <div class="button-grid">
+          <button class="manual-control" data-command="start">Start</button>
+          <button class="manual-control" data-command="stop">Stop</button>
+          <button class="manual-control" data-command="pause">Pause</button>
+          <button class="manual-control" data-command="return-to-dock">Return to dock</button>
+          <button class="manual-control" data-manual="FORWARD">Manual Forward</button>
+          <button class="manual-control" data-manual="BACKWARD">Manual Backward</button>
+          <button class="manual-control" data-manual="LEFT">Manual Left</button>
+          <button class="manual-control" data-manual="RIGHT">Manual Right</button>
+          <button class="manual-control" data-manual="STOP">Manual Stop</button>
+          <button class="manual-control" data-command="clear-error">Clear Error</button>
+          <button class="manual-control" id="reset-cleaning">Reset cleaning and position</button>
+          <button class="manual-control" id="generate-map">Generate new map</button>
+          <button class="manual-control" id="generate-log-dump">Generate Log Dump</button>
+        </div>
+
+        <label class="speed-control" for="speed-select">
+          <span>Simulation speed</span>
+          <select id="speed-select" class="manual-control">
+            <option value="1">1x</option>
+            <option value="2">2x</option>
+            <option value="5">5x</option>
+            <option value="10">10x</option>
+          </select>
+        </label>
+
+        <label class="speed-control" for="normal-obstacle-count">
+          <span>Obstacles in normal run</span>
+          <input id="normal-obstacle-count" class="manual-control" type="number" min="1" max="12" step="1" value="4" />
+        </label>
+
+        <section class="batch-card">
+          <div class="section-heading">
+            <h2>Batch Simulation</h2>
+            <span id="batch-mode-indicator">Idle</span>
+          </div>
+
+          <div class="batch-grid">
+            <label>
+              <span>Runs</span>
+              <input id="batch-run-count" type="number" min="1" max="100" step="1" value="3" />
+            </label>
+            <label>
+              <span>Max real run time (ms)</span>
+              <input id="batch-max-time-ms" type="number" min="1000" step="1000" value="12000" />
+            </label>
+            <label>
+              <span>Target coverage (%)</span>
+              <input id="batch-target-coverage" type="number" min="0" max="100" step="1" value="35" />
+            </label>
+            <label>
+              <span>Batch speed</span>
+              <select id="batch-speed-select">
+                <option value="1">1x</option>
+                <option value="2">2x</option>
+                <option value="5">5x</option>
+                <option value="10" selected>10x</option>
+              </select>
+            </label>
+            <label>
+              <span>Obstacle count</span>
+              <input id="batch-obstacle-count" type="number" min="1" max="12" step="1" value="4" />
+            </label>
+            <label class="checkbox-field">
+              <input id="batch-return-to-dock" type="checkbox" />
+              <span>Return to Dock after stop condition</span>
+            </label>
+          </div>
+
+          <div class="checkbox-grid">
+            <label class="checkbox-field">
+              <input id="batch-stop-time" type="checkbox" checked />
+              <span>Stop on time limit</span>
+            </label>
+            <label class="checkbox-field">
+              <input id="batch-stop-coverage" type="checkbox" checked />
+              <span>Stop on coverage threshold</span>
+            </label>
+            <label class="checkbox-field">
+              <input id="batch-stop-docked" type="checkbox" checked />
+              <span>Stop on successful docking</span>
+            </label>
+            <label class="checkbox-field">
+              <input id="batch-stop-stuck" type="checkbox" checked />
+              <span>Stop on stuck diagnostic</span>
+            </label>
+          </div>
+
+          <div class="button-grid batch-buttons">
+            <button id="start-batch">Start Batch</button>
+            <button id="stop-batch">Stop Batch</button>
+            <button id="clear-batch-results">Clear Batch Results</button>
+          </div>
+
+          <dl class="facts compact-facts">
+            <div><dt>Batch id</dt><dd id="batch-id">-</dd></div>
+            <div><dt>Run</dt><dd id="batch-run-progress">0 / 0</dd></div>
+            <div><dt>Run session</dt><dd id="batch-session-id">-</dd></div>
+            <div><dt>Elapsed real</dt><dd id="batch-elapsed-ms">0 ms</dd></div>
+            <div><dt>Coverage</dt><dd id="batch-coverage">0.0%</dd></div>
+            <div><dt>Run state</dt><dd id="batch-run-state">Idle</dd></div>
+            <div><dt>Finish condition</dt><dd id="batch-finish-condition">-</dd></div>
+            <div><dt>Completed runs</dt><dd id="batch-completed-count">0</dd></div>
+            <div><dt>Failed/stuck runs</dt><dd id="batch-failed-count">0</dd></div>
+            <div><dt>Last saved log</dt><dd><code id="batch-last-log-path">-</code></dd></div>
+            <div><dt>Batch summary</dt><dd><code id="batch-summary-path">-</code></dd></div>
+          </dl>
+        </section>
+
+        <div class="status-strip">
+          <span id="loop-indicator">Idle</span>
+          <span id="error-banner" aria-live="polite"></span>
+          <span id="dump-banner" aria-live="polite"></span>
+        </div>
+      </section>
+
+      <section class="room-panel">
+        <div id="room" class="room" aria-label="Sala 2D del robot">
+          <canvas id="coverage-layer" class="coverage-layer" width="860" height="560"></canvas>
+          <div id="dock" class="dock">Dock</div>
+          <div id="obstacle-layer" class="obstacle-layer"></div>
+          <div id="robot" class="robot">
+            <div class="robot-body"></div>
+            <div id="heading" class="heading"></div>
+            <div id="sensor-cone" class="sensor-cone"></div>
+            <div id="bumper-ring" class="bumper-ring"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel telemetry-panel">
+        <h2>RobotStatus</h2>
+        <dl class="facts">
+          <div><dt>State</dt><dd id="state-value">-</dd></div>
+          <div><dt>Cleaning mode</dt><dd id="mode-value">-</dd></div>
+          <div><dt>Battery</dt><dd id="battery-value">-</dd></div>
+          <div><dt>Charging</dt><dd id="charging-value">-</dd></div>
+          <div><dt>Suction</dt><dd id="suction-value">-</dd></div>
+          <div><dt>Brushes</dt><dd id="brushes-value">-</dd></div>
+          <div><dt>Left wheel</dt><dd id="left-wheel-value">-</dd></div>
+          <div><dt>Right wheel</dt><dd id="right-wheel-value">-</dd></div>
+          <div><dt>Error</dt><dd id="error-value">-</dd></div>
+          <div><dt>Coverage</dt><dd id="coverage-value">0.0%</dd></div>
+        </dl>
+
+        <h2>Sensores</h2>
+        <ul id="sensor-flags" class="sensor-list"></ul>
+
+        <h2>Status raw</h2>
+        <pre id="status-json" class="status-json">{}</pre>
+      </section>
+    </main>
+  </body>
+</html>
