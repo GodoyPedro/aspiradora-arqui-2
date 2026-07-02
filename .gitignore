@@ -1,5 +1,16 @@
 target/
 
+# Angular visualizer build outputs
+angular-visualizer/.angular/
+angular-visualizer/dist/
+angular-visualizer/node_modules/
+
+# Android build outputs
+android-app/.gradle/
+android-app/build/
+android-app/app/build/
+android-app/local.properties
+
 # Local editor settings
 .vscode/
 

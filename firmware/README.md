@@ -12,7 +12,8 @@ El foco de este repositorio es la capa de firmware:
 - exponer estado y telemetria;
 - mantener una arquitectura testeable y desacoplada del hardware real.
 
-No incluye aplicacion Android real, Bluetooth, GPIO real ni codigo especifico de una placa embebida.
+La capa de firmware no incluye Bluetooth, GPIO real ni código específico de una placa embebida.
+La app Android de control remoto vive separada en `android-app/` y consume la API HTTP.
 
 ## Diagrama General
 
@@ -459,11 +460,64 @@ La aplicacion levanta por defecto en:
 http://127.0.0.1:3000
 ```
 
+## Android Remote Control App
+
+Este repositorio tambien incluye una app Android nativa en `android-app/`
+para controlar la aspiradora por la API HTTP del firmware.
+
+### Ejecutar firmware y app juntos
+
+1. Inicia el firmware desde la raiz del repositorio:
+
+```bash
+cargo run
+```
+
+2. Abre `android-app/` en Android Studio.
+3. Ejecuta la app `Vacuum Remote` en un emulador o dispositivo Android.
+4. Usa el campo `Base URL` de la pantalla principal para apuntar al firmware.
+
+Para el emulador Android, usa:
+
+```text
+http://10.0.2.2:3000
+```
+
+Para un dispositivo fisico en la misma red WiFi, usa la IP local de la
+computadora que ejecuta el firmware:
+
+```text
+http://<ip-local-de-tu-pc>:3000
+```
+
+La app permite consultar estado, iniciar, detener, pausar, volver al dock,
+limpiar errores, seleccionar modo `AUTO` y enviar movimientos manuales con
+velocidad y duracion configurables. No implementa apagado/encendido real de
+hardware porque el firmware actual no expone endpoints de power on/off ni hace
+alcanzable el estado `OFF` por HTTP.
+
+## Qué Conviene Versionar
+
+En este repositorio tiene sentido subir:
+
+- `src/`
+- `tests/`
+- `Cargo.toml`
+- `Cargo.lock`
+- `README.md`
+- `openspec/`
+- `.codex/skills/` si querés conservar el flujo de trabajo del proyecto con Codex/OpenSpec
+
+No conviene subir:
+
+- `target/`
+- `.vscode/`
+- exports locales como `aspiradora-arqui2.zip`
+
 ## Limitaciones Del Alcance
 
-Quedan explicitamente fuera de esta entrega:
+Quedan explícitamente fuera de esta entrega de firmware:
 
-- aplicacion Android real;
 - Bluetooth;
 - Wi-Fi embebido real;
 - GPIO real;
