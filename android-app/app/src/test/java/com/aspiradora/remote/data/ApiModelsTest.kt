@@ -22,10 +22,15 @@ class ApiModelsTest {
               "left_wheel_speed": 0,
               "right_wheel_speed": 0,
               "current_error": null,
+              "auto_navigation_phase": "LANE_FOLLOWING",
               "sensors": {
-                "obstacle_detected": false,
+                "obstacle_detected": true,
                 "drop_off_detected": false,
-                "bumper_pressed": false,
+                "bumper_pressed": true,
+                "proximity_contact": true,
+                "contact_type": "wall",
+                "wall_side": "left",
+                "forward_clearance_blocked": false,
                 "dust_container_full": false,
                 "wheel_stuck": false,
                 "brush_stuck": false,
@@ -38,6 +43,9 @@ class ApiModelsTest {
         assertEquals("STANDBY", status.state)
         assertEquals("AUTO", status.cleaningMode)
         assertEquals(80, status.batteryPercent)
+        assertEquals("LANE_FOLLOWING", status.autoNavigationPhase)
+        assertEquals(true, status.sensors.proximityContact)
+        assertEquals("wall", status.sensors.contactType)
     }
 
     @Test

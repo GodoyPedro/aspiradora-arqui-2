@@ -1,117 +1,110 @@
 # Robot Vacuum Firmware API Specification
 
-This document provides a detailed technical specification of the HTTP interface exposed by the robot vacuum firmware.
+This document provides a detailed technical specification of the HTTP interface exposed by the robot vacuum firmware, derived directly from the `axum` implementation in `firmware/src/api/`.
 
 ## 1. General Principles
 
 - **Protocol**: HTTP/1.1
 - **Content-Type**: `application/json`
-- **Error Handling**: The API uses standard HTTP status codes. Errors include a structured JSON body with a `code` and a `message`.
-- **State Consistency**: Most command endpoints return the updated `RobotStatusResponse` upon success (HTTP 200).
+- **Serialization**: Enums use `SCREAMING_SNAKE_CASE` for requests.
+- **Base URL**: Typically `http://localhost:3000` or `http://10.0.2.2:3000` (for Android emulators).
 
 ---
 
-## 2. Endpoints
+## 2. Core Control Endpoints
+
+These endpoints manage the primary robot operations and are the ones used by the mobile application.
 
 ### 2.1 Get Status
 **`GET /status`**
+Returns the complete snapshot of the robot.
+- **Response `200 OK`**: [RobotStatusResponse](#31-robotstatusresponse)
 
-Returns the complete snapshot of the robot's current state, sensors, and configuration.
+### 2.2 Movement & Mode
+#### `POST /commands/start`
+Starts cleaning. Transitions to `CLEANING`.
+- **Response `200 OK`**: [RobotStatusResponse](#31-robotstatusresponse)
 
+#### `POST /commands/stop`
+Stops activity. Transitions to `STANDBY`.
+- **Response `200 OK`**: [RobotStatusResponse](#31-robotstatusresponse)
+
+#### `POST /commands/pause`
+Pauses active cleaning.
+- **Response `200 OK`**: [RobotStatusResponse](#31-robotstatusresponse)
+
+#### `POST /commands/return-to-dock`
+Commands the robot to return to the charging station.
+- **Response `200 OK`**: [RobotStatusResponse](#31-robotstatusresponse)
+
+#### `POST /commands/manual-move`
+Executes precise manual movement.
+- **Request Body**: `{"direction": "FORWARD | BACKWARD | LEFT | RIGHT | STOP", "speed": u8, "duration_ms": u64}`
+- **Response `200 OK`**: [RobotStatusResponse](#31-robotstatusresponse)
+
+#### `POST /commands/mode`
+Sets the cleaning mode.
+- **Request Body**: `{"mode": "AUTO | ZIG_ZAG | WALL_FOLLOWING | SPOT"}`
+- **Note**: `ZIGZAG` is accepted as an alias for `ZIG_ZAG`.
+- **Response `200 OK`**: [RobotStatusResponse](#31-robotstatusresponse)
+
+#### `POST /commands/clear-error`
+Clears current error conditions.
 - **Response `200 OK`**: [RobotStatusResponse](#31-robotstatusresponse)
 
 ---
 
-### 2.2 Control Commands
+## 3. Simulation & Testing Endpoints
 
-All commands follow a similar pattern: they are requested via `POST` and return the updated status.
+These endpoints are used for development, simulation control, and integration testing. They bypass real-world constraints.
 
-#### `POST /commands/start`
-Starts the cleaning process.
-- **Preconditions**: Robot must be in `STANDBY` or `PAUSED`.
-- **Errors**:
-  - `409 COMMAND_NOT_ALLOWED`: If called from an invalid state (e.g., `ERROR`).
-  - `409 BATTERY_TOO_LOW`: If battery is below the minimum threshold to start.
+### 3.1 Environment Manipulation
+- **`POST /simulation/sensors`**: Force sensor values (obstacle, drop-off, bumper, etc.).
+- **`POST /simulation/battery`**: Set battery percentage (0-100).
+- **`POST /simulation/docking`**: Set dock availability and detection flags.
+- **`POST /simulation/reset`**: Resets the simulation to the initial config state.
 
-#### `POST /commands/stop`
-Stops the current activity and returns the robot to `STANDBY`.
-- **Preconditions**: Any state except `OFF`.
-
-#### `POST /commands/pause`
-Pauses active cleaning or manual movement.
-- **Preconditions**: Robot must be in `CLEANING` or `MANUAL_CONTROL`.
-
-#### `POST /commands/return-to-dock`
-Commands the robot to find and return to its charging station.
-- **Acceptable from**: `STANDBY`, `CLEANING`, `PAUSED`, `MANUAL_CONTROL`.
-
-#### `POST /commands/clear-error`
-Attempts to clear a safety or hardware error.
-- **Errors**:
-  - `409`: Returns if the physical error condition (e.g., bumper still pressed) persists.
+### 3.2 Runtime Control
+- **`POST /simulation/tick`**: Advances the internal simulation clock.
+  - Request: `{"delta_ms": u64}` (defaults to 100ms, max 1000ms).
+- **`POST /simulation/log-dump`**: Persists simulation logs to disk.
+- **`POST /simulation/batch-summary`**: Persists batch simulation results.
 
 ---
 
-### 2.3 Parameterized Commands
-
-#### `POST /commands/manual-move`
-Executes a precise movement.
-- **Request Body**: [ManualMoveRequest](#33-manualmoverequest)
-- **Rules**:
-  - Validates `speed` (0-255) and `duration_ms` (> 0).
-  - Transitions the robot to `MANUAL_CONTROL`.
-
-#### `POST /commands/mode`
-Sets the cleaning strategy.
-- **Request Body**: [ModeRequest](#34-moderequest)
-- **Supported Modes**: `AUTO`, `ZIG_ZAG` (alias `ZIGZAG`), `WALL_FOLLOWING`, `SPOT`.
+## 4. UI Demo Endpoints
+- **`GET /demo`**: Returns the interactive HTML demo page.
+- **`GET /static/demo.css`**: Stylesheet for the demo.
+- **`GET /static/demo.js`**: Frontend logic for the demo.
 
 ---
 
-## 3. Data Models (Schemas)
+## 5. Data Models
 
-### 3.1 RobotStatusResponse
+### 5.1 RobotStatusResponse
 | Property | Type | Description |
 | :--- | :--- | :--- |
-| `state` | String | Current state (e.g., `STANDBY`, `CLEANING`, `ERROR`). |
-| `cleaning_mode` | String | Active mode (e.g., `AUTO`, `SPOT`). |
-| `battery_percent` | Integer | 0 to 100. |
-| `is_charging` | Boolean | True if connected to dock power. |
-| `suction_enabled` | Boolean | Actuator status. |
-| `brushes_enabled` | Boolean | Actuator status. |
-| `left_wheel_speed` | Integer | Real-time motor speed. |
-| `right_wheel_speed` | Integer | Real-time motor speed. |
-| `current_error` | String? | Error code or `null`. |
-| `sensors` | Object | [SensorSnapshot](#32-sensorsnapshot). |
-
-### 3.2 SensorSnapshot
-Boolean flags for: `obstacle_detected`, `drop_off_detected`, `bumper_pressed`, `dust_container_full`, `wheel_stuck`, `brush_stuck`, `top_cover_open`.
-
-### 3.3 ManualMoveRequest
-```json
-{
-  "direction": "FORWARD | BACKWARD | LEFT | RIGHT | STOP",
-  "speed": 0..255,
-  "duration_ms": "long"
-}
-```
-
-### 3.4 ModeRequest
-```json
-{
-  "mode": "AUTO | ZIG_ZAG | ZIGZAG | WALL_FOLLOWING | SPOT"
-}
-```
+| `state` | String | e.g., `STANDBY`, `CLEANING`, `ERROR`, `PAUSED`, `MANUAL_CONTROL`. |
+| `cleaning_mode` | String | `AUTO`, `ZIG_ZAG`, `WALL_FOLLOWING`, `SPOT`. |
+| `battery_percent` | u8 | 0..=100. |
+| `is_charging` | bool | True if connected to dock. |
+| `suction_enabled` | bool | True if suction is running. |
+| `brushes_enabled` | bool | True if brushes are spinning. |
+| `left_wheel_speed` | i16 | Current wheel velocity. |
+| `right_wheel_speed` | i16 | Current wheel velocity. |
+| `current_error` | String? | Error description if in `ERROR` state. |
+| `sensors` | Object | Full sensor snapshot (bumper, proximity, dust, etc.). |
 
 ---
 
-## 4. Error Responses
-**Status Codes**: `400 Bad Request`, `409 Conflict`.
-**Body**:
+## 6. Error Handling
+Errors return a standard `ErrorResponse` with appropriate HTTP codes (400, 409, 500).
+
 ```json
 {
-  "code": "STRING_CONSTANT",
-  "message": "Human readable explanation",
-  "current_state": "Optional current robot state"
+  "code": "STRING_CODE",
+  "message": "Detailed message",
+  "current_state": "Optional current state name"
 }
 ```
+Typical codes: `COMMAND_NOT_ALLOWED`, `BATTERY_TOO_LOW`, `MALFORMED_JSON`.
