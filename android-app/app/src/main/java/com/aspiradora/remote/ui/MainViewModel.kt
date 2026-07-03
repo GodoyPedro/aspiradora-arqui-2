@@ -28,7 +28,7 @@ data class CommandAvailability(
     val canReturnToDock: Boolean = false,
     val canClearError: Boolean = false,
     val canManualMove: Boolean = false,
-    val canSetAutoMode: Boolean = false,
+    val canSetMode: Boolean = false,
 )
 
 enum class ConnectionState {
@@ -100,7 +100,8 @@ class MainViewModel @Inject constructor(
     fun pauseCleaning() = runCommand { repository.pause(uiState.value.baseUrl) }
     fun returnToDock() = runCommand { repository.returnToDock(uiState.value.baseUrl) }
     fun clearError() = runCommand { repository.clearError(uiState.value.baseUrl) }
-    fun setAutoMode() = runCommand { repository.setAutoMode(uiState.value.baseUrl) }
+    fun setMode(mode: com.aspiradora.remote.data.CleaningModeRequest) =
+        runCommand { repository.setMode(uiState.value.baseUrl, mode) }
 
     fun manualMove(direction: ManualDirection) {
         val speed = uiState.value.dpadSpeedText.toIntOrNull()
@@ -192,6 +193,6 @@ fun RobotStatusDto.toAvailability(): CommandAvailability {
         canReturnToDock = normalizedState != "OFF" && normalizedState != "CHARGING" && normalizedState != "ERROR",
         canClearError = normalizedState == "ERROR",
         canManualMove = normalizedState != "OFF" && normalizedState != "CHARGING" && normalizedState != "ERROR",
-        canSetAutoMode = normalizedState != "OFF",
+        canSetMode = normalizedState != "OFF" && normalizedState != "ERROR",
     )
 }

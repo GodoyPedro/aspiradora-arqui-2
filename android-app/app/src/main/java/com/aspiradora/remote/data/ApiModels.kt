@@ -73,4 +73,16 @@ enum class ManualDirection {
 enum class CleaningModeRequest {
     @SerialName("AUTO")
     AUTO,
+
+    @SerialName("ZIG_ZAG")
+    ZIG_ZAG,
+
+    @SerialName("ZIGZAG")
+    ZIGZAG,
+
+    @SerialName("WALL_FOLLOWING")
+    WALL_FOLLOWING,
+
+    @SerialName("SPOT")
+    SPOT,
 }

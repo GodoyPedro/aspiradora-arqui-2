@@ -56,11 +56,11 @@ class VacuumApiClient @Inject constructor(
     suspend fun clearError(baseUrl: String): ApiResult<RobotStatusDto> =
         requestStatus { client.post(baseUrl.endpoint("/commands/clear-error")) }
 
-    suspend fun setAutoMode(baseUrl: String): ApiResult<RobotStatusDto> =
+    suspend fun setMode(baseUrl: String, mode: CleaningModeRequest): ApiResult<RobotStatusDto> =
         requestStatus {
             client.post(baseUrl.endpoint("/commands/mode")) {
                 contentType(ContentType.Application.Json)
-                setBody(SetModeRequestDto(CleaningModeRequest.AUTO))
+                setBody(SetModeRequestDto(mode))
             }
         }
 

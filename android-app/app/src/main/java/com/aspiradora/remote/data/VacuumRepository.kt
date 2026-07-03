@@ -10,7 +10,7 @@ interface VacuumRepository {
     suspend fun pause(baseUrl: String): ApiResult<RobotStatusDto>
     suspend fun returnToDock(baseUrl: String): ApiResult<RobotStatusDto>
     suspend fun clearError(baseUrl: String): ApiResult<RobotStatusDto>
-    suspend fun setAutoMode(baseUrl: String): ApiResult<RobotStatusDto>
+    suspend fun setMode(baseUrl: String, mode: CleaningModeRequest): ApiResult<RobotStatusDto>
     suspend fun manualMove(
         baseUrl: String,
         direction: ManualDirection,
@@ -29,7 +29,8 @@ class HttpVacuumRepository @Inject constructor(
     override suspend fun pause(baseUrl: String) = apiClient.pause(baseUrl)
     override suspend fun returnToDock(baseUrl: String) = apiClient.returnToDock(baseUrl)
     override suspend fun clearError(baseUrl: String) = apiClient.clearError(baseUrl)
-    override suspend fun setAutoMode(baseUrl: String) = apiClient.setAutoMode(baseUrl)
+    override suspend fun setMode(baseUrl: String, mode: CleaningModeRequest) =
+        apiClient.setMode(baseUrl, mode)
     override suspend fun manualMove(
         baseUrl: String,
         direction: ManualDirection,

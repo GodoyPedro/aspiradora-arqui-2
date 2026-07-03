@@ -69,7 +69,7 @@ fun MainRoute(viewModel: MainViewModel = hiltViewModel()) {
         onPause = viewModel::pauseCleaning,
         onReturnToDock = viewModel::returnToDock,
         onClearError = viewModel::clearError,
-        onAutoMode = viewModel::setAutoMode,
+        onSetMode = viewModel::setMode,
         onSpeedChange = viewModel::updateSpeed,
         onDurationChange = viewModel::updateDuration,
         onManualMove = viewModel::manualMove,
@@ -87,7 +87,7 @@ fun MainScreen(
     onPause: () -> Unit,
     onReturnToDock: () -> Unit,
     onClearError: () -> Unit,
-    onAutoMode: () -> Unit,
+    onSetMode: (com.aspiradora.remote.data.CleaningModeRequest) -> Unit,
     onSpeedChange: (String) -> Unit,
     onDurationChange: (String) -> Unit,
     onManualMove: (ManualDirection) -> Unit,
@@ -109,7 +109,7 @@ fun MainScreen(
         state.lastError?.let { ErrorText(it) }
         state.validationError?.let { ErrorText(it) }
         StatusPanel(status = state.status)
-        CommandPanel(state.availability, busy, onStart, onStop, onPause, onReturnToDock, onClearError, onAutoMode)
+        CommandPanel(state.availability, busy, onStart, onStop, onPause, onReturnToDock, onClearError, onSetMode)
         DPadPanel(
             state = state,
             busy = busy,
@@ -157,7 +157,7 @@ private fun StatusPanel(status: RobotStatusDto?) {
                 Text("No confirmed status yet.")
             } else {
                 Metric("State", status.state)
-                Metric("Mode", status.cleaningMode)
+                Metric("Mode", if (status.cleaningMode == "ZIGZAG") "ZIG_ZAG" else status.cleaningMode)
                 Metric("Battery", "${status.batteryPercent}%")
                 Metric("Charging", status.isCharging.yesNo())
                 Metric("Suction", status.suctionEnabled.onOff())
@@ -187,7 +187,7 @@ private fun CommandPanel(
     onPause: () -> Unit,
     onReturnToDock: () -> Unit,
     onClearError: () -> Unit,
-    onAutoMode: () -> Unit,
+    onSetMode: (com.aspiradora.remote.data.CleaningModeRequest) -> Unit,
 ) {
     Card {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -200,10 +200,35 @@ private fun CommandPanel(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(enabled = availability.canReturnToDock && !busy, onClick = onReturnToDock) { Text("Dock") }
                 Button(enabled = availability.canClearError && !busy, onClick = onClearError) { Text("Clear error") }
-                Button(enabled = availability.canSetAutoMode && !busy, onClick = onAutoMode) { Text("AUTO") }
+            }
+            Text("Cleaning Modes", style = MaterialTheme.typography.titleSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ModeButton("AUTO", availability.canSetMode && !busy) {
+                    onSetMode(com.aspiradora.remote.data.CleaningModeRequest.AUTO)
+                }
+                ModeButton("ZIG-ZAG", availability.canSetMode && !busy) {
+                    onSetMode(com.aspiradora.remote.data.CleaningModeRequest.ZIG_ZAG)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ModeButton("WALL", availability.canSetMode && !busy) {
+                    onSetMode(com.aspiradora.remote.data.CleaningModeRequest.WALL_FOLLOWING)
+                }
+                ModeButton("SPOT", availability.canSetMode && !busy) {
+                    onSetMode(com.aspiradora.remote.data.CleaningModeRequest.SPOT)
+                }
             }
         }
     }
+}
+
+@Composable
+private fun ModeButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+    AssistChip(
+        onClick = onClick,
+        enabled = enabled,
+        label = { Text(label) }
+    )
 }
 
 @Composable
