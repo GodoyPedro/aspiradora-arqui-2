@@ -1,0 +1,197 @@
+openapi: 3.0.3
+info:
+  title: Robot Vacuum Firmware API
+  version: 1.0.0
+  description: API for controlling and monitoring the robot vacuum firmware.
+
+paths:
+  /status:
+    get:
+      summary: Get current robot status
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RobotStatusResponse'
+
+  /commands/start:
+    post:
+      summary: Start cleaning
+      responses:
+        '200':
+          $ref: '#/components/responses/StatusUpdate'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /commands/stop:
+    post:
+      summary: Stop cleaning and return to STANDBY
+      responses:
+        '200':
+          $ref: '#/components/responses/StatusUpdate'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /commands/pause:
+    post:
+      summary: Pause active cleaning
+      responses:
+        '200':
+          $ref: '#/components/responses/StatusUpdate'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /commands/return-to-dock:
+    post:
+      summary: Command robot to return to dock
+      responses:
+        '200':
+          $ref: '#/components/responses/StatusUpdate'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /commands/manual-move:
+    post:
+      summary: Execute manual movement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualMoveRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/StatusUpdate'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /commands/mode:
+    post:
+      summary: Set cleaning mode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/StatusUpdate'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
+  /commands/clear-error:
+    post:
+      summary: Clear current error condition
+      responses:
+        '200':
+          $ref: '#/components/responses/StatusUpdate'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+components:
+  responses:
+    StatusUpdate:
+      description: Returns the updated status of the robot.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RobotStatusResponse'
+    ConflictError:
+      description: Command not allowed in current state or specific condition.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    BadRequestError:
+      description: Malformed request or invalid parameters.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+
+  schemas:
+    RobotStatusResponse:
+      type: object
+      properties:
+        state:
+          type: string
+        cleaning_mode:
+          type: string
+        battery_percent:
+          type: integer
+        is_charging:
+          type: boolean
+        suction_enabled:
+          type: boolean
+        brushes_enabled:
+          type: boolean
+        left_wheel_speed:
+          type: integer
+        right_wheel_speed:
+          type: integer
+        current_error:
+          type: string
+          nullable: true
+        sensors:
+          $ref: '#/components/schemas/SensorSnapshot'
+
+    SensorSnapshot:
+      type: object
+      properties:
+        obstacle_detected:
+          type: boolean
+        drop_off_detected:
+          type: boolean
+        bumper_pressed:
+          type: boolean
+        dust_container_full:
+          type: boolean
+        wheel_stuck:
+          type: boolean
+        brush_stuck:
+          type: boolean
+        top_cover_open:
+          type: boolean
+
+    ManualMoveRequest:
+      type: object
+      required:
+        - direction
+        - speed
+        - duration_ms
+      properties:
+        direction:
+          type: string
+          enum: [FORWARD, BACKWARD, LEFT, RIGHT, STOP]
+        speed:
+          type: integer
+          minimum: 0
+          maximum: 255
+        duration_ms:
+          type: integer
+          format: int64
+
+    ModeRequest:
+      type: object
+      required:
+        - mode
+      properties:
+        mode:
+          type: string
+          enum: [AUTO, ZIG_ZAG, ZIGZAG, WALL_FOLLOWING, SPOT]
+
+    ApiErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        current_state:
+          type: string
+          nullable: true
