@@ -40,3 +40,10 @@ pub fn create_simulation_controller(config: SimulationConfig) -> SimulationRobot
         SimulatedClock::default(),
     )
 }
+
+pub fn reset_simulation_controller(
+    controller: &mut SimulationRobotController,
+    config: SimulationConfig,
+) {
+    *controller = create_simulation_controller(config);
+}

@@ -1,4 +1,7 @@
-use robot_vacuum_firmware::domain::{CleaningMode, ManualDirection, RobotCommand, RobotState};
+use robot_vacuum_firmware::domain::{
+    AutoNavigationPhase, CleaningMode, ContactType, ManualDirection, RobotCommand, RobotState,
+    WallSide,
+};
 use robot_vacuum_firmware::simulation::{create_simulation_controller, SimulationConfig};
 
 #[test]
@@ -65,6 +68,26 @@ fn manual_movement_changes_wheel_speeds() {
 }
 
 #[test]
+fn manual_move_expires_after_simulated_time_advance() {
+    let mut controller = create_simulation_controller(SimulationConfig::default());
+    controller
+        .handle_command(RobotCommand::ManualMove {
+            direction: ManualDirection::Forward,
+            speed: 45,
+            duration_ms: 250,
+        })
+        .expect("manual move should succeed");
+
+    controller.clock_mut().advance_ms(300);
+    let status = controller.tick();
+
+    assert_eq!(status.state, RobotState::Standby);
+    assert_eq!(status.left_wheel_speed, 0);
+    assert_eq!(status.right_wheel_speed, 0);
+    assert_eq!(status.cleaning_mode, CleaningMode::Auto);
+}
+
+#[test]
 fn status_is_readable_during_error() {
     let mut controller = create_simulation_controller(SimulationConfig::default());
     controller
@@ -83,33 +106,200 @@ fn status_is_readable_during_error() {
 }
 
 #[test]
-fn obstacle_detected_triggers_avoidance_while_cleaning() {
+fn start_cleaning_enters_room_crossing() {
+    let mut controller = create_simulation_controller(SimulationConfig::default());
+    controller
+        .handle_command(RobotCommand::StartCleaning)
+        .expect("start cleaning should succeed");
+
+    let status = controller.tick();
+
+    assert_eq!(status.state, RobotState::Cleaning);
+    assert_eq!(
+        status.auto_navigation_phase,
+        Some(AutoNavigationPhase::RoomCrossing)
+    );
+    assert_eq!(status.left_wheel_speed, 36);
+    assert_eq!(status.right_wheel_speed, 36);
+}
+
+#[test]
+fn proximity_wall_contact_enters_wall_recovery() {
+    let mut controller = create_simulation_controller(SimulationConfig::default());
+    controller
+        .handle_command(RobotCommand::StartCleaning)
+        .expect("start cleaning should succeed");
+    controller.sensor_reader_mut().proximity_contact = true;
+    controller.sensor_reader_mut().bumper_pressed = true;
+    controller.sensor_reader_mut().contact_type = Some(ContactType::Wall);
+    controller.sensor_reader_mut().wall_side = Some(WallSide::Left);
+
+    let backup = controller.tick();
+    assert_eq!(
+        backup.auto_navigation_phase,
+        Some(AutoNavigationPhase::WallBackup)
+    );
+    assert_eq!(backup.left_wheel_speed, -24);
+    assert_eq!(backup.right_wheel_speed, -24);
+
+    controller.clock_mut().advance_ms(900);
+    controller.sensor_reader_mut().proximity_contact = false;
+    controller.sensor_reader_mut().bumper_pressed = false;
+    let align = controller.tick();
+    assert_eq!(
+        align.auto_navigation_phase,
+        Some(AutoNavigationPhase::WallTurnAway)
+    );
+
+    controller.clock_mut().advance_ms(15_000);
+    controller.tick();
+    let follow = controller.tick();
+    assert_eq!(
+        follow.auto_navigation_phase,
+        Some(AutoNavigationPhase::WallExitForward)
+    );
+    assert_eq!(follow.left_wheel_speed, 36);
+    assert_eq!(follow.right_wheel_speed, 36);
+}
+
+#[test]
+fn clearance_turn_clear_holds_until_sensor_clears() {
+    let mut controller = create_simulation_controller(SimulationConfig::default());
+    controller
+        .handle_command(RobotCommand::StartCleaning)
+        .expect("start cleaning should succeed");
+    controller.sensor_reader_mut().proximity_contact = true;
+    controller.sensor_reader_mut().bumper_pressed = true;
+    controller.sensor_reader_mut().contact_type = Some(ContactType::Obstacle);
+    controller.sensor_reader_mut().wall_side = None;
+    controller.tick();
+    controller.clock_mut().advance_ms(900);
+    controller.tick();
+    controller.clock_mut().advance_ms(60_000);
+    controller.tick();
+
+    let status = controller.tick();
+    assert_eq!(
+        status.auto_navigation_phase,
+        Some(AutoNavigationPhase::ClearanceTurnClear)
+    );
+    assert_eq!(status.left_wheel_speed.abs(), 6);
+    assert_eq!(status.right_wheel_speed.abs(), 6);
+    assert_eq!(status.left_wheel_speed, -status.right_wheel_speed);
+}
+
+#[test]
+fn wall_contact_uses_wall_recovery_phases() {
+    let mut controller = create_simulation_controller(SimulationConfig::default());
+    controller
+        .handle_command(RobotCommand::StartCleaning)
+        .expect("start cleaning should succeed");
+    controller.sensor_reader_mut().proximity_contact = true;
+    controller.sensor_reader_mut().bumper_pressed = true;
+    controller.sensor_reader_mut().contact_type = Some(ContactType::Wall);
+    controller.sensor_reader_mut().wall_side = Some(WallSide::Left);
+    controller.tick();
+    controller.clock_mut().advance_ms(900);
+    controller.tick();
+    controller.tick();
+
+    controller.sensor_reader_mut().proximity_contact = true;
+    controller.sensor_reader_mut().bumper_pressed = true;
+    controller.sensor_reader_mut().contact_type = Some(ContactType::Wall);
+    let corner_backup = controller.tick();
+    assert_eq!(
+        corner_backup.auto_navigation_phase,
+        Some(AutoNavigationPhase::WallTurnAway)
+    );
+    assert_eq!(corner_backup.left_wheel_speed.abs(), 6);
+    assert_eq!(corner_backup.right_wheel_speed.abs(), 6);
+    assert_eq!(
+        corner_backup.left_wheel_speed,
+        -corner_backup.right_wheel_speed
+    );
+
+    controller.sensor_reader_mut().proximity_contact = false;
+    controller.sensor_reader_mut().bumper_pressed = false;
+    let corner_turn = controller.tick();
+    assert_eq!(
+        corner_turn.auto_navigation_phase,
+        Some(AutoNavigationPhase::WallTurnAway)
+    );
+
+    controller.clock_mut().advance_ms(15_000);
+    controller.tick();
+    let corner_exit = controller.tick();
+    assert_eq!(
+        corner_exit.auto_navigation_phase,
+        Some(AutoNavigationPhase::WallExitForward)
+    );
+
+    controller.clock_mut().advance_ms(1_600);
+    let corner_exit = controller.tick();
+    assert_eq!(
+        corner_exit.auto_navigation_phase,
+        Some(AutoNavigationPhase::RoomCrossing)
+    );
+    assert_eq!(corner_exit.left_wheel_speed, 36);
+    assert_eq!(corner_exit.right_wheel_speed, 36);
+}
+
+#[test]
+fn obstacle_contact_enters_clearance_escape() {
+    let mut controller = create_simulation_controller(SimulationConfig::default());
+    controller
+        .handle_command(RobotCommand::StartCleaning)
+        .expect("start cleaning should succeed");
+    controller.sensor_reader_mut().proximity_contact = true;
+    controller.sensor_reader_mut().bumper_pressed = true;
+    controller.sensor_reader_mut().contact_type = Some(ContactType::Obstacle);
+
+    let backup = controller.tick();
+    assert_eq!(
+        backup.auto_navigation_phase,
+        Some(AutoNavigationPhase::ClearanceBackup)
+    );
+    assert_eq!(backup.left_wheel_speed, -24);
+    assert_eq!(backup.right_wheel_speed, -24);
+
+    controller.clock_mut().advance_ms(900);
+    controller.sensor_reader_mut().proximity_contact = false;
+    controller.sensor_reader_mut().bumper_pressed = false;
+    let turn_away = controller.tick();
+    assert_eq!(
+        turn_away.auto_navigation_phase,
+        Some(AutoNavigationPhase::ClearanceTurnClear)
+    );
+
+    controller.tick();
+    controller.tick();
+    let escape = controller.tick();
+    assert_eq!(
+        escape.auto_navigation_phase,
+        Some(AutoNavigationPhase::ClearanceExitForward)
+    );
+    assert_eq!(escape.left_wheel_speed, 36);
+    assert_eq!(escape.right_wheel_speed, 36);
+}
+
+#[test]
+fn obstacle_detected_alone_does_not_trigger_escape() {
     let mut controller = create_simulation_controller(SimulationConfig::default());
     controller
         .handle_command(RobotCommand::StartCleaning)
         .expect("start cleaning should succeed");
     controller.sensor_reader_mut().obstacle_detected = true;
+    controller.sensor_reader_mut().proximity_contact = false;
+    controller.sensor_reader_mut().bumper_pressed = false;
 
     let status = controller.tick();
 
-    assert_eq!(status.state, RobotState::Cleaning);
-    assert_eq!(status.left_wheel_speed, 30);
-    assert_eq!(status.right_wheel_speed, -30);
-}
-
-#[test]
-fn bumper_pressed_triggers_avoidance_while_cleaning() {
-    let mut controller = create_simulation_controller(SimulationConfig::default());
-    controller
-        .handle_command(RobotCommand::StartCleaning)
-        .expect("start cleaning should succeed");
-    controller.sensor_reader_mut().bumper_pressed = true;
-
-    let status = controller.tick();
-
-    assert_eq!(status.state, RobotState::Cleaning);
-    assert_eq!(status.left_wheel_speed, 30);
-    assert_eq!(status.right_wheel_speed, -30);
+    assert_eq!(
+        status.auto_navigation_phase,
+        Some(AutoNavigationPhase::RoomCrossing)
+    );
+    assert_eq!(status.left_wheel_speed, 36);
+    assert_eq!(status.right_wheel_speed, 36);
 }
 
 #[test]
@@ -170,7 +360,10 @@ fn wheel_stuck_transitions_to_error_and_stops_actuators() {
     let status = controller.tick();
 
     assert_eq!(status.state, RobotState::Error);
-    assert_eq!(status.current_error.map(|err| err.to_string()), Some("WHEEL_STUCK".into()));
+    assert_eq!(
+        status.current_error.map(|err| err.to_string()),
+        Some("WHEEL_STUCK".into())
+    );
     assert_eq!(status.left_wheel_speed, 0);
 }
 
@@ -185,7 +378,10 @@ fn brush_stuck_transitions_to_error_and_stops_actuators() {
     let status = controller.tick();
 
     assert_eq!(status.state, RobotState::Error);
-    assert_eq!(status.current_error.map(|err| err.to_string()), Some("BRUSH_STUCK".into()));
+    assert_eq!(
+        status.current_error.map(|err| err.to_string()),
+        Some("BRUSH_STUCK".into())
+    );
     assert!(!status.suction_enabled);
 }
 
@@ -284,7 +480,10 @@ fn unsupported_mode_is_rejected_safely() {
         .expect_err("spot mode should be unsupported");
 
     assert_eq!(error.code, "UNSUPPORTED_MODE");
-    assert_eq!(controller.current_status().cleaning_mode, CleaningMode::Auto);
+    assert_eq!(
+        controller.current_status().cleaning_mode,
+        CleaningMode::Auto
+    );
 }
 
 #[test]
