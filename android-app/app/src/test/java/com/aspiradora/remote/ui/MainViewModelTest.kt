@@ -2,6 +2,7 @@ package com.aspiradora.remote.ui
 
 import com.aspiradora.remote.data.ApiResult
 import com.aspiradora.remote.data.AppError
+import com.aspiradora.remote.data.CleaningModeRequest
 import com.aspiradora.remote.data.ManualDirection
 import com.aspiradora.remote.data.RobotStatusDto
 import com.aspiradora.remote.data.SensorSnapshotDto
@@ -136,10 +137,15 @@ class MainViewModelTest {
         leftWheelSpeed = 0,
         rightWheelSpeed = 0,
         currentError = null,
+        autoNavigationPhase = null,
         sensors = SensorSnapshotDto(
             obstacleDetected = false,
             dropOffDetected = false,
             bumperPressed = false,
+            proximityContact = false,
+            contactType = null,
+            wallSide = null,
+            forwardClearanceBlocked = false,
             dustContainerFull = false,
             wheelStuck = false,
             brushStuck = false,
@@ -164,7 +170,11 @@ private class FakeRepository(
     override suspend fun pause(baseUrl: String) = commandResult
     override suspend fun returnToDock(baseUrl: String) = commandResult
     override suspend fun clearError(baseUrl: String) = commandResult
-    override suspend fun setAutoMode(baseUrl: String) = commandResult
+    override suspend fun setMode(
+        baseUrl: String,
+        mode: CleaningModeRequest,
+    ) = commandResult
+
     override suspend fun manualMove(
         baseUrl: String,
         direction: ManualDirection,
